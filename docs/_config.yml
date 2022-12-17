@@ -1,0 +1,6 @@
+title: Simple, Stupid
+theme: minima
+show_excerpts: true
+
+plugins:
+ - jekyll-seo-tag
