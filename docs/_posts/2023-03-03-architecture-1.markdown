@@ -3,12 +3,12 @@ layout: post
 title:  Mobile Architecture, UIKit
 ---
 
-Every app has one or more view controllers which are at the center of almost everything you do. There are two types of view controllers:
+Every app has one or more view controllers, which are at the center of almost everything you do. There are two types of view controllers:
 
-- *Content view controllers* display your app’s data.
-- *Container view controllers* display other view controllers.
+- *Content view controllers* (*Contents* for short) display your app’s data.
+- *Container view controllers* (*Containers* for short) display other view controllers.
 
-In view of the above, a view controller is either a content view controller or a container view controller. However, some view controllers are of both types, in a typical navigation flow:
+However, some view controllers are of both types, in a typical navigation flow:
 
 ```swift
 class ExampleViewController: UITableViewController {
@@ -29,29 +29,33 @@ extension ExampleViewController: NextViewControllerDelegate {
 }
 ```
 
-`ExampleViewController` inherits from a content view controller. On the other hand, it instantiates and displays `NextViewController`. This is a definite violation of the [single responsibility principle](https://en.wikipedia.org/wiki/Single-responsibility_principle). Fortunately, everything related to other view controllers can be delegated to a real container, `ExampleViewController` is thus simplified to a content view controller.
+As shown, `ExampleViewController` inherits from `UITableViewController`, a *content*. On the other hand, it instantiates and displays `NextViewController`. This is a definite violation of the [single responsibility principle](https://en.wikipedia.org/wiki/Single-responsibility_principle). Fortunately, everything related to other view controllers can be delegated to a real container, `ExampleViewController` is thus simplified to a *content*.
 
-![one](/assets/230303/one.png)
+![Linear](/assets/230303/one.png)
 
-After simplifying, the delegate of all content view controllers is the navigation controller, the only real container in the navigation flow. The navigation controller will become heavier as the number of content view controllers increases, and will become a [god object](https://en.wikipedia.org/wiki/God_object) someday.
+But there is a new code smell. The navigation controller is the only real container in the navigation flow, so after simplifying, it is the delegate of all *contents*. In a long run, the navigation controller must be a [god object](https://en.wikipedia.org/wiki/God_object) as the number of *contents* increasing.
 
-![two](/assets/230303/two.png)
+![All to one](/assets/230303/two.png)
 
-There is a solution to improve scalability by better arranging content view controllers:
+The view controller hierarchy could be considered as a tree, where leafs are *contents* and branches are *containers*. And there is a negative correlation between the degree and height of a tree node, this is the key to lighten the load of the navigation controller:
 
-- Group content view controllers by purpose.
-- Encapsulate content view controllers of each group into a new container view controller.
-- Make new container view controllers a mediator between the navigation controller and content view controllers.
+1. Group *contents* by purpose, and encapsulate *contents* of each group into a new *container*.
 
-For example, there are two content view controllers that display `Card` and `BillingAddress` which are the components of `PaymentMethod`. Based on the above solution, the two content view controllers will be grouped together and encapsulated into `PaymentMethodController`. Instead of talking to them, the navigation controller displays `PaymentMethodController` and receives `PaymentMethod` from it. The sample code is [here](https://github.com/zzyptr/sample-uikit).
+2. Make each new *container* a [facade](https://en.wikipedia.org/wiki/Facade_pattern) masking view controllers it encapsulates and providing a purpose-specific interface.
+3. Remove grouped view controllers from the navigation controller, but call them indirectly through interfaces of new *containers*.
+4. Examine whether it is necessary to repeat grouping new *containers* by bigger purpose.
 
-![three](/assets/230303/three.png)
+There is an [sample](https://github.com/zzyptr/Sample/tree/UIKit): `DivisionViewController` displays a list of divisions and is encapsulated into `AddressSelectionController` to provide hierarchical address selection. In the second round, `AddressSelectionController` and the other two view controllers are grouped together to compose `PaymentMethodController`. As a result, `RootController` no longer talks to underlying view controllers, but just launches `PaymentMethodController`.
 
-After refactoring, more container view controllers are introduced to share the work of the navigation controller. The view controller hierarchy is restructured into a tree, where leaf nodes are content view controllers and parent nodes are container view controllers. Other benefits of refactoring:
+![Hierarchical](/assets/230303/three.png)
 
-- Clearer role division between two types of view controllers, content view controllers thus are more reusable.
-- No dependency between a view controller and its sibling, this means it is easy to partial compile, run and debug, the flow of developing is more agile.
-- Evolvable, it is easy to separate a large container view controller into several smaller container view controllers (a [divide and conquer strategy](https://en.wikipedia.org/wiki/Divide_and_conquer_algorithm)).
+
+
+
+
+This is the first in a series of articles on mobile architecture. In the next article, the architecture will be applied in SwiftUI.
+
+
 
 
 
